@@ -7,6 +7,12 @@ units = {}
 requirement_rules = {}
 preference_rules = {}
 
+def show_interpreter_info():
+    print('--------------------------------------------------------')
+    print(' QoS Interpreter v0.2 (August 2017)')
+    print(' Copyright (c) CDSNLab, KAIST, All Rights Reserved')
+    print('--------------------------------------------------------\n')
+
 def get_network_req(str):
     name,operator,value,unit = str.split()
     req = {}
@@ -206,6 +212,9 @@ def apply_user_preferences(qosreq, preferences):
     return qosreq
 
 def interpret(svc_desc):
+    #show interpreter info
+    show_interpreter_info()
+
     try:
         # Check if service type is valid. otherwise, return error.
         svc_type = get_basic_svctype_name(svc_desc['service_type'])
