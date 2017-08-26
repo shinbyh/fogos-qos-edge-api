@@ -3,8 +3,9 @@ import traceback
 
 supported_svc_types = {}
 default_qosreq_dict = {}
-requirement_rules = {}
 units = {}
+requirement_rules = {}
+preference_rules = {}
 
 def get_network_req(str):
     name,operator,value,unit = str.split()
@@ -70,12 +71,16 @@ def load_requirement_rules():
                 requirement_rules[req_category][req_type] = {}
 
             req_value = row[2]
+            if(req_value not in requirement_rules[req_category][req_type].keys()):
+                requirement_rules[req_category][req_type][req_value] = {}
+
             req_qos_param = row[3]
             req_qos_unit = row[4]
             req_qos_op = row[5]
             req_qos_min = row[6]
             req_qos_max = row[7]
-            requirement_rules[req_category][req_type][req_value] = {
+
+            requirement_rules[req_category][req_type][req_value][req_qos_param] = {
                 'qos_param':req_qos_param,
                 'qos_unit':req_qos_unit,
                 'qos_op':req_qos_op,
@@ -88,6 +93,31 @@ def load_units():
         rows = csv.reader(csvfile)
         for row in rows:
             units[row[0]] = float(row[1])
+
+def load_preference_rules():
+    with open('preference_rules.csv', newline='') as csvfile:
+        rows = csv.reader(csvfile)
+        for row in rows:
+            pref = row[0]
+            if(pref not in preference_rules.keys()):
+                preference_rules[pref] = {}
+
+            pref_qos_param = row[1]
+            if(pref_qos_param not in preference_rules[pref].keys()):
+                preference_rules[pref][pref_qos_param] = {}
+
+            pref_qos_unit = row[2]
+            pref_qos_op = row[3]
+            pref_qos_min = row[4]
+            pref_qos_max = row[5]
+
+            preference_rules[pref][pref_qos_param] = {
+                'qos_param':pref_qos_param,
+                'qos_unit':pref_qos_unit,
+                'qos_op':pref_qos_op,
+                'qos_min':pref_qos_min,
+                'qos_max':pref_qos_max
+            }
 
 def get_basic_svctype_name(svc_type_str):
     for supported_svc_type in supported_svc_types.keys():
@@ -113,38 +143,66 @@ def process_requirements(qosreq, requirements):
         req_value = requirement['value']
         req_type = requirement['type']
         print('## category:', req_category, ', type:', req_type, ', value:', req_value)
-        #print(req_category)
-        #print(req_type)
-        #print(req_value)
 
         if(req_value in requirement_rules[req_category][req_type].keys()):
-            rule = requirement_rules[req_category][req_type][req_value]
+            rules = requirement_rules[req_category][req_type][req_value]
         elif('any' in requirement_rules[req_category][req_type].keys()):
-            rule = requirement_rules[req_category][req_type]['any']
+            rules = requirement_rules[req_category][req_type]['any']
         else:
             print('[Error] Unsupported requirement value: ', req_value)
             continue
 
-        print('  @@ Applying rule:', rule)
-        if(qosreq[rule['qos_param']] is not None):
-            print('  @@ Target: ', qosreq[rule['qos_param']])
+        for rule_param in rules.keys():
+            rule = rules[rule_param]
 
-            value_to_apply = 0.0
-            if(rule['qos_max'] == 'value'):
-                value_to_apply  = float(req_value)
-            else:
-                value_to_apply = float(rule['qos_max'])
+            print('  @@ Applying rule:', rule)
+            if(qosreq[rule['qos_param']] is not None):
+                print('  @@ Target: ', qosreq[rule['qos_param']])
 
-            if(rule['qos_op'] == 'add'):
-                qosreq[rule['qos_param']]['metricValue'] += value_to_apply*apply_unit_diff(qosreq[rule['qos_param']]['metricUnit'], rule['qos_unit'])
-            elif(rule['qos_op'] == 'multiply'):
-                qosreq[rule['qos_param']]['metricValue'] *= value_to_apply*apply_unit_diff(qosreq[rule['qos_param']]['metricUnit'], rule['qos_unit'])
-            elif(rule['qos_op'] == 'subtract'):
-                qosreq[rule['qos_param']]['metricValue'] -= value_to_apply*apply_unit_diff(qosreq[rule['qos_param']]['metricUnit'], rule['qos_unit'])
-            elif(rule['qos_op'] == 'min'):
-                qosreq[rule['qos_param']]['metricValue'] = min([qosreq[rule['qos_param']]['metricValue'], value_to_apply*apply_unit_diff(qosreq[rule['qos_param']]['metricUnit'], rule['qos_unit'])])
-            elif(rule['qos_op'] == 'max'):
-                qosreq[rule['qos_param']]['metricValue'] = max([qosreq[rule['qos_param']]['metricValue'], value_to_apply*apply_unit_diff(qosreq[rule['qos_param']]['metricUnit'], rule['qos_unit'])])
+                value_to_apply = 0.0
+                if(rule['qos_max'] == 'value'):
+                    value_to_apply  = float(req_value)
+                else:
+                    value_to_apply = float(rule['qos_max'])
+
+                if(rule['qos_op'] == 'add'):
+                    qosreq[rule['qos_param']]['metricValue'] += value_to_apply*apply_unit_diff(qosreq[rule['qos_param']]['metricUnit'], rule['qos_unit'])
+                elif(rule['qos_op'] == 'multiply'):
+                    qosreq[rule['qos_param']]['metricValue'] *= value_to_apply*apply_unit_diff(qosreq[rule['qos_param']]['metricUnit'], rule['qos_unit'])
+                elif(rule['qos_op'] == 'subtract'):
+                    qosreq[rule['qos_param']]['metricValue'] -= value_to_apply*apply_unit_diff(qosreq[rule['qos_param']]['metricUnit'], rule['qos_unit'])
+                elif(rule['qos_op'] == 'min'):
+                    qosreq[rule['qos_param']]['metricValue'] = min([qosreq[rule['qos_param']]['metricValue'], value_to_apply*apply_unit_diff(qosreq[rule['qos_param']]['metricUnit'], rule['qos_unit'])])
+                elif(rule['qos_op'] == 'max'):
+                    qosreq[rule['qos_param']]['metricValue'] = max([qosreq[rule['qos_param']]['metricValue'], value_to_apply*apply_unit_diff(qosreq[rule['qos_param']]['metricUnit'], rule['qos_unit'])])
+    return qosreq
+
+def apply_user_preferences(qosreq, preferences):
+    for pref in preferences:
+        rules = preference_rules[pref]
+        for rule_param in rules.keys():
+            rule = rules[rule_param]
+
+            print('  ## Applying preference:',pref,', rule:',rule)
+            if(qosreq[rule['qos_param']] is not None):
+                print('  @@ Target: ', qosreq[rule['qos_param']])
+
+                value_to_apply = 0.0
+                if(rule['qos_max'] == 'value'):
+                    value_to_apply  = float(req_value)
+                else:
+                    value_to_apply = float(rule['qos_max'])
+
+                if(rule['qos_op'] == 'add'):
+                    qosreq[rule['qos_param']]['metricValue'] += value_to_apply*apply_unit_diff(qosreq[rule['qos_param']]['metricUnit'], rule['qos_unit'])
+                elif(rule['qos_op'] == 'multiply'):
+                    qosreq[rule['qos_param']]['metricValue'] *= value_to_apply*apply_unit_diff(qosreq[rule['qos_param']]['metricUnit'], rule['qos_unit'])
+                elif(rule['qos_op'] == 'subtract'):
+                    qosreq[rule['qos_param']]['metricValue'] -= value_to_apply*apply_unit_diff(qosreq[rule['qos_param']]['metricUnit'], rule['qos_unit'])
+                elif(rule['qos_op'] == 'min'):
+                    qosreq[rule['qos_param']]['metricValue'] = min([qosreq[rule['qos_param']]['metricValue'], value_to_apply*apply_unit_diff(qosreq[rule['qos_param']]['metricUnit'], rule['qos_unit'])])
+                elif(rule['qos_op'] == 'max'):
+                    qosreq[rule['qos_param']]['metricValue'] = max([qosreq[rule['qos_param']]['metricValue'], value_to_apply*apply_unit_diff(qosreq[rule['qos_param']]['metricUnit'], rule['qos_unit'])])
     return qosreq
 
 def interpret(svc_desc):
@@ -155,16 +213,27 @@ def interpret(svc_desc):
             return make_error_msg('unsupported_svc_type',
                     'The service type {} is not supported.'.format(svc_desc['service_type']))
 
+        #debug
+        print('Service Type:',svc_type,'\n')
+
         # Load default based on service type (copy from default)
         #qosreq = list(default_qosreq_dict[svc_type])
         qosreq = {}
         for item in default_qosreq_dict[svc_type]:
             qosreq[item['metricName']] = item
+        #debug
+        print('Default QoSReq:', qosreq,'\n')
 
         # Apply service-specific requirements
+        print('Processing Service-specific Requirements...')
         process_requirements(qosreq, svc_desc['requirements'])
+        print(' ')
 
         # Apply user preferences
+        print('Applying User Preferences...')
+        if('preferences' in svc_desc.keys()):
+            apply_user_preferences(qosreq, svc_desc['preferences'])
+        print(' ')
 
         # Return network requirements
         qosreq['service_name'] = svc_desc['service_name']
@@ -176,8 +245,9 @@ def interpret(svc_desc):
 if __name__ == '__main__':
     load_supported_svctypes()
     load_deafult_qosreq()
-    load_requirement_rules()
     load_units()
+    load_requirement_rules()
+    load_preference_rules()
 
     svc_desc = {
         'service_type':'videostreaming',
@@ -201,7 +271,9 @@ if __name__ == '__main__':
                 'unit':'kbps',
                 'value':'128'
             }
-        ]
+        ],
+        'preferences':['smooth_playback']
     }
     qosreq = interpret(svc_desc)
+    print('QoS Interpretation Result:')
     print(qosreq)
