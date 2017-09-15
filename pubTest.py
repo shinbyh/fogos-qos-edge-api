@@ -1,8 +1,5 @@
 import csv
 import traceback
-# For MQTT
-import paho.mqtt.publish as publish
-import json
 
 supported_svc_types = {}
 default_qosreq_dict = {}
@@ -287,42 +284,5 @@ if __name__ == '__main__':
         'preferences':['smooth_playback']
     }
     qosreq = interpret(svc_desc)
-    
-    '''
-    MQTT publish
-    [TOPIC]
-    /configuration/join
-    /configuration/leave
-    /configuration/register
-    '''
-    # common variables
-    deviceID = "tmpDevID"
-    relay = "none"
-    mqtt_broker_addr = "iot.eclipse.org"
-
-    # /configuration/join
-    uniqueCodes = [{"ifaceType": "wifi", "hwAddress": "00:11:22:33:aa:bb", "ipv4": "10.0.3.15", "wifiSSID": "Welcome_KAIST"}]
-    neighbors = [
-        {"neighborIface":"wifi", "neighborIpv4":"10.0.3.2"}, 
-        {"neighborIface":"wifi", "neighborIpv4":"10.0.3.8"}, 
-        {"neighborIface":"bluetooth", "neighborHwAddress":"00:11:22:33:aa:bb"}
-    ]
-    pubKey = "012345234af"
-    payload = {"uniqueCodes": uniqueCodes, "relay": relay, "neighbors": neighbors, "pubKey": pubKey}
-    publish.single("/configuration/join/"+deviceID, json.dumps(payload), hostname=mqtt_broker_addr)
-    
-    # /configuration/leave
-    payload = {"deviceID": deviceID, "relay": relay}
-    publish.single("/configuration/leave/"+deviceID, json.dumps(payload), hostname=mqtt_broker_addr)
-    
-    # /configuration/register
-    registerID = "1"
-    registerList = [
-        {"id": "0", "registerType": "Service", "type": "Streaming", "attributes": ["bandwidth=10Mbps", "seqNum>1&seqNum<100"]},
-        {"id": "1", "registerType": "Service", "type": "Web", "attributes": ["bandwidth=100Mbps", "seqNum>3&seqNum<=200"]}
-    ]
-    payload = {"registerID": registerID, "deviceID": deviceID, "registerList": registerList, "relay": relay}
-    publish.single("/configuration/register/"+deviceID, json.dumps(payload), hostname=mqtt_broker_addr)
-    
     print('QoS Interpretation Result:')
     print(qosreq)
