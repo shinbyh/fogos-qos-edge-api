@@ -1,8 +1,10 @@
 import csv
 import traceback
 # For MQTT
+import paho.mqtt.client as mqtt
 import paho.mqtt.publish as publish
 import json
+import time
 
 supported_svc_types = {}
 default_qosreq_dict = {}
@@ -253,6 +255,18 @@ def interpret(svc_desc):
     except:
         traceback.print_exc()
         return make_error_msg('internal_error', 'Internal server error.')
+    
+def on_message(client, userdata, msg):
+    print ('topic:'+ msg.topic + '\nMessage: ' + str(msg.payload))
+
+def on_connect(client, userdata, rc):
+    print("connected with result code "+str(rc))
+    client.subscribe("configuration/join_ack/tempDevID")
+    client.subscribe("configuration/leave_ack/tempDevID")
+    client.subscribe("configuration/update_ack/tempDevID")
+    client.subscribe("configuration/register_ack/tempDevID")
+    client.subscribe("utilization/reply/tempDevID")
+    print("subscribed to 5 topics")
 
 if __name__ == '__main__':
     load_supported_svctypes()
@@ -294,35 +308,75 @@ if __name__ == '__main__':
     /configuration/join
     /configuration/leave
     /configuration/register
+    /configuration/update
+    /utilization/query
+    MQTT subscribe
+    /configuration/join_ack
+    /configuration/leave_ack
+    /configuration/register_ack
+    /configuration/update_ack
+    /utilization/query_ack
     '''
     # common variables
+    
     deviceID = "tmpDevID"
     relay = "none"
+    additionalFields="none"
     mqtt_broker_addr = "iot.eclipse.org"
-
+    # create connection
+    client=mqtt.Client()
+    client.on_connect=on_connect
+    client.on_message=on_message
+    client.connect(mqtt_broker_addr,1883, 60)
+    
+    
     # /configuration/join
     uniqueCodes = [{"ifaceType": "wifi", "hwAddress": "00:11:22:33:aa:bb", "ipv4": "10.0.3.15", "wifiSSID": "Welcome_KAIST"}]
     neighbors = [
-        {"neighborIface":"wifi", "neighborIpv4":"10.0.3.2"}, 
-        {"neighborIface":"wifi", "neighborIpv4":"10.0.3.8"}, 
-        {"neighborIface":"bluetooth", "neighborHwAddress":"00:11:22:33:aa:bb"}
+        {"neighborIface":"wifi", "neighborIpv4":"10.0.3.2", "neighborFlexID":"abcdef"}, 
+        {"neighborIface":"wifi", "neighborIpv4":"10.0.3.8", "neighborFlexID":"abcdef"}, 
+        {"neighborIface":"bluetooth", "neighborHwAddress":"00:11:22:33:aa:bb", "neighborFlexID":"abcdef"}
     ]
     pubKey = "012345234af"
     payload = {"uniqueCodes": uniqueCodes, "relay": relay, "neighbors": neighbors, "pubKey": pubKey}
-    publish.single("/configuration/join/"+deviceID, json.dumps(payload), hostname=mqtt_broker_addr)
+    # publish.single("/configuration/join/"+deviceID, json.dumps(payload), hostname=mqtt_broker_addr)
     
     # /configuration/leave
     payload = {"deviceID": deviceID, "relay": relay}
-    publish.single("/configuration/leave/"+deviceID, json.dumps(payload), hostname=mqtt_broker_addr)
+    #publish.single("/configuration/leave/"+deviceID, json.dumps(payload), hostname=mqtt_broker_addr)
     
     # /configuration/register
     registerID = "1"
     registerList = [
-        {"id": "0", "registerType": "Service", "type": "Streaming", "attributes": ["bandwidth=10Mbps", "seqNum>1&seqNum<100"]},
-        {"id": "1", "registerType": "Service", "type": "Web", "attributes": ["bandwidth=100Mbps", "seqNum>3&seqNum<=200"]}
+        {"index": "0", "hash": "171717abab", "registerType": "Service", "category": "Streaming", "attributes": ["bandwidth=10Mbps", "seqNum>1&seqNum<100"], "cache": "true","segment": "true", "collisionAvoid": "true"},
+        {"index": "1", "hash": "272727kbkb", "registerType": "Service", "category": "Web", "attributes": ["bandwidth=100Mbps", "seqNum>3&seqNum<=200"], "cache": "true", "segment":"true", "collisionAvoid":"true"}
     ]
-    payload = {"registerID": registerID, "deviceID": deviceID, "registerList": registerList, "relay": relay}
-    publish.single("/configuration/register/"+deviceID, json.dumps(payload), hostname=mqtt_broker_addr)
+    payload = {"registerID": registerID, "registerList": registerList, "relay": relay}
+   #  publish.single("/configuration/register/"+deviceID, json.dumps(payload), hostname=mqtt_broker_addr)
     
+    # /configuration/update
+    updateID = "1"
+    flexId = "adsf123"
+    deregister = True
+    attributes = [
+        {"bandwidth":"10Mbps", "seqNum": "1" }
+    ]
+    payload = {"updateID": updateID, "id": flexId, "deregister": deregister, "attributes": attributes, "relay": relay}
+    #publish.single("/configuration/update/"+deviceID, json.dumps(payload), hostname=mqtt_broker_addr)
+
+    # /utilization/query
+    queryID = "1"
+    queryType = "Content"
+    category = "Any"
+    order = "distance"
+    desc = True
+    limit = "1"
+    qosRequirements = [
+        {"metricType": "bandwidth", "metricUnit": "mbps", "metricValue": "1","metricOperator":"gt"}
+    ]
+    payload = {"queryID": queryID, "queryType": queryType, "category": category, "relay": relay, "order": order, "desc": desc, "limit": limit, "qosRequirements": qosRequirements, "additionalFields": additionalFields}
+    publish.single("/utilization/query/"+deviceID, json.dumps(payload), hostname=mqtt_broker_addr)
+
     print('QoS Interpretation Result:')
     print(qosreq)
+    time.sleep(200)
