@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import csv
 import traceback
 # For MQTT
@@ -11,6 +12,13 @@ default_qosreq_dict = {}
 units = {}
 requirement_rules = {}
 preference_rules = {}
+
+def get_interpreter_info():
+    str = ('--------------------------------------------------------'
+            ' QoS Interpreter v0.2 (August 2017)'
+            ' Copyright (c) CDSNLab, KAIST, All Rights Reserved'
+            '--------------------------------------------------------\n')
+    return str;
 
 def show_interpreter_info():
     print('--------------------------------------------------------')
@@ -255,7 +263,15 @@ def interpret(svc_desc):
     except:
         traceback.print_exc()
         return make_error_msg('internal_error', 'Internal server error.')
-    
+
+
+load_supported_svctypes()
+load_deafult_qosreq()
+load_units()
+load_requirement_rules()
+load_preference_rules()
+
+
 def on_message(client, userdata, msg):
     print ('topic:'+ msg.topic + '\nMessage: ' + str(msg.payload))
 
@@ -301,7 +317,7 @@ if __name__ == '__main__':
         'preferences':['smooth_playback']
     }
     qosreq = interpret(svc_desc)
-    
+
     '''
     MQTT publish
     [TOPIC]
@@ -318,7 +334,7 @@ if __name__ == '__main__':
     /utilization/query_ack
     '''
     # common variables
-    
+
     deviceID = "tmpDevID"
     relay = "none"
     additionalFields="none"
@@ -328,23 +344,23 @@ if __name__ == '__main__':
     client.on_connect=on_connect
     client.on_message=on_message
     client.connect(mqtt_broker_addr,1883, 60)
-    
-    
+
+
     # /configuration/join
     uniqueCodes = [{"ifaceType": "wifi", "hwAddress": "00:11:22:33:aa:bb", "ipv4": "10.0.3.15", "wifiSSID": "Welcome_KAIST"}]
     neighbors = [
-        {"neighborIface":"wifi", "neighborIpv4":"10.0.3.2", "neighborFlexID":"abcdef"}, 
-        {"neighborIface":"wifi", "neighborIpv4":"10.0.3.8", "neighborFlexID":"abcdef"}, 
+        {"neighborIface":"wifi", "neighborIpv4":"10.0.3.2", "neighborFlexID":"abcdef"},
+        {"neighborIface":"wifi", "neighborIpv4":"10.0.3.8", "neighborFlexID":"abcdef"},
         {"neighborIface":"bluetooth", "neighborHwAddress":"00:11:22:33:aa:bb", "neighborFlexID":"abcdef"}
     ]
     pubKey = "012345234af"
     payload = {"uniqueCodes": uniqueCodes, "relay": relay, "neighbors": neighbors, "pubKey": pubKey}
-    # publish.single("/configuration/join/"+deviceID, json.dumps(payload), hostname=mqtt_broker_addr)
-    
+    #publish.single("/configuration/join/"+deviceID, json.dumps(payload), hostname=mqtt_broker_addr)
+
     # /configuration/leave
     payload = {"deviceID": deviceID, "relay": relay}
     #publish.single("/configuration/leave/"+deviceID, json.dumps(payload), hostname=mqtt_broker_addr)
-    
+
     # /configuration/register
     registerID = "1"
     registerList = [
@@ -353,7 +369,7 @@ if __name__ == '__main__':
     ]
     payload = {"registerID": registerID, "registerList": registerList, "relay": relay}
    #  publish.single("/configuration/register/"+deviceID, json.dumps(payload), hostname=mqtt_broker_addr)
-    
+
     # /configuration/update
     updateID = "1"
     flexId = "adsf123"
