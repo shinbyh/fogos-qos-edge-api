@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
-import subprocess, os
+import os
+from os.path import expanduser
 
 def get_pubkey():
-    my_env = os.environ.copy()
-    username = subprocess.check_output(['echo', my_env['USER']])
-    ssh_pubkey_path = '/home/{}/.ssh/id_rsa.pub'.format(username.decode('utf-8').strip())
+    home_dir = expanduser('~')
+    ssh_pubkey_path = '{}/.ssh/id_rsa.pub'.format(home_dir)
+
+    #my_env = os.environ.copy()
+    #username = subprocess.check_output(['echo', my_env['USER']])
+    #ssh_pubkey_path = '/home/{}/.ssh/id_rsa.pub'.format(username.decode('utf-8').strip())
 
     print(ssh_pubkey_path)
     pubkey = 'null'
